@@ -12,10 +12,10 @@ PASSWORD = os.getenv("XB_PASSWORD")
 LOCATION = os.getenv("XB_LOCATION")
 # 位置，可选通过接口获取
 COORD = os.getenv("XB_COORD")
-# 邮件开关
-# IS_EMAIL = os.getenv("XB_IS_EMAIL") #不要开关直接干掉
-# 邮箱账号
-EMAIL = os.getenv("XB_EMAIL")
+
+#server酱
+SENDKEY = os.getenv("XB_SENDKEY")
+
 # 企业微信应用
 WX_APP = os.getenv("XB_WXAPP")
 # 基本链接
@@ -44,14 +44,20 @@ def is_open():
         print("请在浏览器里打开链接获取经纬度：https://api.xiaobaibk.com/api/map/")
 
 
+if SENDKEY is None:
+    SENDKEY =''
+
+if WX_APP is None:
+    WX_APP = ''
+
 # 判断环境变量里是否为空
 if USERNAME is None or PASSWORD is None:
     USERNAME = str(input("请输入小北学生账号："))
     PASSWORD = str(input("请输入小北学生密码："))
     is_open()
     LOCATION = str(input("请将您所复制的经纬度粘贴到此处："))
-    # COORD = str(input("请将您所在的区域【如：中国-云南省-昆明市-官渡区】："))
-    EMAIL = input("接收邮箱账号,留空则不开启:")
+    print("登录网站【https://sct.ftqq.com/】获取sendkey")
+    SENDKEY = input("[留空则不开启]server酱通知密钥:")
     print("微信通知,开启需填写KEY，教程：https://ghurl.github.io/?130")
     WX_APP = input("微信通知密钥,留空则不开启:")
     PASSWORD = str(base64.b64encode(PASSWORD.encode()).decode())
@@ -105,19 +111,21 @@ def get_param(coord):
     }
 
 
-def send_mail(context):
-    url = "https://api.xiaobaibk.com/api/mail/"
-    js = {'mailto': EMAIL, 'content': context}
-    # {"code":200,"msg":"\u606d\u559c\u60a8\u53d1\u9001\u6210\u529f\u4e86"}
+def sc_send(context):
+    baseUrl = 'https://sctapi.ftqq.com/'+SENDKEY+'.send'
+    resp = None
+    data = {
+        "text": context,
+        "desp": context
+    }
     try:
-        result = requests.post(url, js).text
+        resp = requests.post(baseUrl, data=data).text
+        # {"code":0,"message":"","data":{"pushid":"35319564","readkey":"SCT1c4Qpzp0F9u7","error":"SUCCESS","errno":0}}
     except:
-        print("邮件发送不成功，估计邮件服务器崩了吧")
-    type = json.loads(result)['code']
-    if type == 200:
-        print("邮件通知发送成功！")
-    else:
-        print("邮件通知发送失败，原因：" + json.loads(result)['msg'])
+        print("server酱通知失败了")
+    resp = json.loads(resp)
+    if resp['code'] != 0:
+        print(resp['message'])
 
 
 # 一言
@@ -227,9 +235,13 @@ if __name__ == '__main__':
 
     if code != 200:
         print("Sorry! Login failed! Error：" + msg)
-        # 发送邮件
-        if EMAIL != '':
-            send_mail("登录失败，失败原因：" + msg)
+
+
+        # server酱
+        if SENDKEY != '':
+            sc_send("登录失败，失败原因：" + msg)
+
+        #
         if WX_APP != '':
             wxapp_notify("登录失败，失败原因：" + msg)
     else:
@@ -264,13 +276,23 @@ if __name__ == '__main__':
         status = json.loads(respond)['code']
         if status == 200:
             print("恭喜您打卡成功啦！")
-            if EMAIL != '':
-                send_mail("打卡成功啦🎉")
+
+            # server酱
+            if SENDKEY != '':
+                sc_send("打卡成功啦🎉")
+
+            #
             if WX_APP != '':
                 wxapp_notify("打卡成功啦🎉")
         else:
             print("Error：" + json.loads(respond)['msg'])
-            if EMAIL != 'yes':
-                send_mail("🙁抱歉打卡失败了，原因未知，请自行手动打卡，谢谢")
+
+            print(SENDKEY)
+
+            # server酱
+            if SENDKEY != '':
+                sc_send("🙁抱歉打卡失败了，原因未知，请自行手动打卡，谢谢")
+
+            #
             if WX_APP != '':
                 wxapp_notify("🙁抱歉打卡失败了，请自行手动打卡，谢谢--->失败原因:"+json.loads(respond)['msg'], '打卡失败')
